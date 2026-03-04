@@ -1,0 +1,48 @@
+Port 22
+Protocol 2
+
+# Authentication
+PubkeyAuthentication yes
+PasswordAuthentication no
+PermitEmptyPasswords no
+ChallengeResponseAuthentication no
+KbdInteractiveAuthentication no
+UsePAM no
+PermitRootLogin no
+
+# Access control
+AllowUsers sandbox
+
+# Limits
+MaxAuthTries 3
+MaxSessions 5
+LoginGraceTime 30
+
+# Forwarding
+AllowTcpForwarding yes
+GatewayPorts no
+X11Forwarding no
+AllowAgentForwarding no
+PermitTunnel no
+
+# Cosmetics
+PrintMotd no
+
+# SFTP subsystem (wolfi path)
+Subsystem sftp /usr/lib/ssh/sftp-server
+
+# Logging
+LogLevel INFO
+SyslogFacility AUTH
+
+# Keepalive
+ClientAliveInterval 60
+ClientAliveCountMax 3
+
+# Strict mode
+StrictModes yes
+
+# Host keys
+HostKey /etc/ssh/ssh_host_ed25519_key
+HostKey /etc/ssh/ssh_host_ecdsa_key
+HostKey /etc/ssh/ssh_host_rsa_key
