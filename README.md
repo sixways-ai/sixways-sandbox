@@ -1,7 +1,6 @@
 # sixways-sandbox
 
-Hardened container images for AI coding agent sandboxing, used by [SixWays Nforcer](https://github.com/sixways-ai).
-
+Hardened container images for AI coding agent sandboxing.
 Published to `ghcr.io/sixways-ai/sixways-sandbox`.
 
 ## Variants
