@@ -9,6 +9,7 @@ Published to `ghcr.io/sixways-ai/sixways-sandbox`.
 |-----|----------|------|
 | `base` | SSH + git + bash | ~30 MB |
 | `node` | base + Node.js 22 LTS + npm | ~80 MB |
+| `python` | base + Python 3.12 + pip | ~60 MB |
 
 ## Quick start
 
@@ -26,7 +27,7 @@ docker run -d \
 ssh -i /tmp/sandbox_key -p 2222 -o StrictHostKeyChecking=no sandbox@127.0.0.1
 ```
 
-For the Node.js variant, replace `:base` with `:node`.
+For the Node.js variant, replace `:base` with `:node`. For Python, use `:python`.
 
 ## Security design
 
@@ -67,6 +68,65 @@ docker run -d \
 
 If the agent needs outbound access (e.g. `npm install`, `git clone`), replace `--network none` with a restricted Docker network or firewall rules.
 
+## Running AI coding agents
+
+The sandbox images don't ship with any agent pre-installed - agents are installed at runtime so you always get the latest version. The orchestrator (e.g. Nforcer) SSHs into the sandbox, installs the agent, and runs it.
+
+### Claude Code (Anthropic) - uses `:node`
+
+```bash
+docker run -d -p 2222:22 \
+  -e AUTHORIZED_KEY="$(cat /tmp/sandbox_key.pub)" \
+  ghcr.io/sixways-ai/sixways-sandbox:node
+
+ssh -i /tmp/sandbox_key -p 2222 sandbox@127.0.0.1 bash -lc '
+  npm install -g @anthropic-ai/claude-code
+  ANTHROPIC_API_KEY=sk-ant-... claude "fix the failing tests"
+'
+```
+
+### Codex CLI (OpenAI) - uses `:node`
+
+```bash
+ssh -i /tmp/sandbox_key -p 2222 sandbox@127.0.0.1 bash -lc '
+  npm install -g @openai/codex
+  OPENAI_API_KEY=sk-... codex "refactor the auth module"
+'
+```
+
+### Gemini CLI (Google) - uses `:node`
+
+```bash
+ssh -i /tmp/sandbox_key -p 2222 sandbox@127.0.0.1 bash -lc '
+  npm install -g @google/gemini-cli
+  GEMINI_API_KEY=... gemini
+'
+```
+
+### OpenClaw - uses `:node`
+
+```bash
+ssh -i /tmp/sandbox_key -p 2222 sandbox@127.0.0.1 bash -lc '
+  npm install -g openclaw
+  openclaw agent
+'
+```
+
+### Aider - uses `:python`
+
+```bash
+docker run -d -p 2222:22 \
+  -e AUTHORIZED_KEY="$(cat /tmp/sandbox_key.pub)" \
+  ghcr.io/sixways-ai/sixways-sandbox:python
+
+ssh -i /tmp/sandbox_key -p 2222 sandbox@127.0.0.1 bash -lc '
+  pip install --user aider-chat
+  ANTHROPIC_API_KEY=sk-ant-... aider --model claude-sonnet-4-6
+'
+```
+
+> **Note:** These examples show API keys inline for clarity. In production, pass keys via environment variables at `docker run` time or mount a secrets file - never hardcode them.
+
 ## Building locally
 
 ```bash
@@ -76,6 +136,10 @@ docker build -t sixways-sandbox:base -f base/Dockerfile .
 # Build node variant (using local base - sed replaces the registry prefix)
 sed 's|FROM ghcr.io/sixways-ai/sixways-sandbox:|FROM sixways-sandbox:|' node/Dockerfile | \
   docker build -t sixways-sandbox:node -f - --build-arg BASE_TAG=base .
+
+# Build python variant
+sed 's|FROM ghcr.io/sixways-ai/sixways-sandbox:|FROM sixways-sandbox:|' python/Dockerfile | \
+  docker build -t sixways-sandbox:python -f - --build-arg BASE_TAG=base .
 ```
 
 ## Testing
