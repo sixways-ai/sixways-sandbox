@@ -3,6 +3,8 @@ name: Docker Images
 on:
   push:
     tags: ['v*', 'docker-*']
+  schedule:
+    - cron: '0 13 * * 1'  # Every Monday at 08:00 EST (13:00 UTC)
   workflow_dispatch:
     inputs:
       push:
@@ -60,7 +62,7 @@ jobs:
           context: .
           file: base/Dockerfile
           platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name == 'push' || inputs.push == true }}
+          push: ${{ github.event_name == 'push' || github.event_name == 'schedule' || inputs.push == true }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
@@ -114,7 +116,7 @@ jobs:
           context: .
           file: node/Dockerfile
           platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name == 'push' || inputs.push == true }}
+          push: ${{ github.event_name == 'push' || github.event_name == 'schedule' || inputs.push == true }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: BASE_TAG=base
@@ -169,7 +171,7 @@ jobs:
           context: .
           file: python/Dockerfile
           platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name == 'push' || inputs.push == true }}
+          push: ${{ github.event_name == 'push' || github.event_name == 'schedule' || inputs.push == true }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: BASE_TAG=base
@@ -184,7 +186,7 @@ jobs:
     name: Trivy vulnerability scan
     runs-on: ubuntu-latest
     needs: [build-base, build-node, build-python]
-    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.push == true)
+    if: github.event_name == 'push' || github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.push == true)
     permissions:
       contents: read
       security-events: write

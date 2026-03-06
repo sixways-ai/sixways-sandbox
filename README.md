@@ -154,7 +154,15 @@ docker build -t sixways-sandbox:node -f node/Dockerfile node/
 docker build -t sixways-sandbox:python -f python/Dockerfile python/
 ```
 
-CI builds and publishes all three images to GHCR automatically on tagged pushes — see [`.github/workflows/docker.yml`](.github/workflows/docker.yml).
+## CI / GHCR publishing
+
+Images are built and pushed to GHCR via [`.github/workflows/docker.yml`](.github/workflows/docker.yml). Three triggers:
+
+| Trigger | When | Purpose |
+|---------|------|---------|
+| **Tag push** | `git tag v1.0.0 && git push origin v1.0.0` | Release a new version |
+| **Scheduled** | Every Monday at 08:00 EST | Pick up upstream CVE fixes from Wolfi, Node, Python |
+| **Manual** | Actions > "Docker Images" > "Run workflow" | On-demand rebuild |
 
 ## Testing
 
