@@ -129,18 +129,32 @@ ssh -i /tmp/sandbox_key -p 2222 sandbox@127.0.0.1 bash -lc '
 
 ## Building locally
 
-```bash
-# Build base image
-docker build -t sixways-sandbox:base -f base/Dockerfile .
+The node and python Dockerfiles inherit from `ghcr.io/sixways-ai/sixways-sandbox:latest`. To build entirely from source, tag the base image with that name so the derived builds resolve locally:
 
-# Build node variant (using local base - sed replaces the registry prefix)
-sed 's|FROM ghcr.io/sixways-ai/sixways-sandbox:|FROM sixways-sandbox:|' node/Dockerfile | \
-  docker build -t sixways-sandbox:node -f - --build-arg BASE_TAG=base .
+**Linux / macOS / WSL:**
+
+```bash
+# Build base image (tag it as the GHCR name so node/python resolve locally)
+docker build -t sixways-sandbox:base \
+  -t ghcr.io/sixways-ai/sixways-sandbox:latest \
+  -f base/Dockerfile .
+
+# Build node variant
+docker build -t sixways-sandbox:node -f node/Dockerfile node/
 
 # Build python variant
-sed 's|FROM ghcr.io/sixways-ai/sixways-sandbox:|FROM sixways-sandbox:|' python/Dockerfile | \
-  docker build -t sixways-sandbox:python -f - --build-arg BASE_TAG=base .
+docker build -t sixways-sandbox:python -f python/Dockerfile python/
 ```
+
+**Windows (PowerShell):**
+
+```powershell
+docker build -t sixways-sandbox:base -t ghcr.io/sixways-ai/sixways-sandbox:latest -f base/Dockerfile .
+docker build -t sixways-sandbox:node -f node/Dockerfile node/
+docker build -t sixways-sandbox:python -f python/Dockerfile python/
+```
+
+CI builds and publishes all three images to GHCR automatically on tagged pushes — see [`.github/workflows/docker.yml`](.github/workflows/docker.yml).
 
 ## Testing
 
