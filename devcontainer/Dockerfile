@@ -6,6 +6,6 @@ RUN apk add --no-cache \
     && mkdir -p /var/run/nforcer \
     && chown sandbox:sandbox /var/run/nforcer
 
-COPY --chmod=755 entrypoint-devcontainer.sh /entrypoint-devcontainer.sh
+COPY --chmod=755 devcontainer/entrypoint-devcontainer.sh /entrypoint-devcontainer.sh
 
 ENTRYPOINT ["/entrypoint-devcontainer.sh"]
