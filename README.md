@@ -10,6 +10,7 @@ Published to `ghcr.io/sixways-ai/sixways-sandbox`.
 | `base` | SSH + git + bash | ~30 MB |
 | `node` | base + Node.js 22 LTS + npm | ~80 MB |
 | `python` | base + Python 3.12 + pip | ~60 MB |
+| `devcontainer` | node + VSCode Dev Container support | ~100 MB |
 
 ## Quick start
 
@@ -27,14 +28,14 @@ docker run -d \
 ssh -i /tmp/sandbox_key -p 2222 -o StrictHostKeyChecking=no sandbox@127.0.0.1
 ```
 
-For the Node.js variant, replace `:base` with `:node`. For Python, use `:python`.
+For the Node.js variant, replace `:base` with `:node`. For Python, use `:python`. For Dev Containers, use `:devcontainer`.
 
 ## Security design
 
 - **Wolfi base** - minimal, CVE-tracked OS built for containers
 - **Non-root sandbox user** - uid 1000, no privilege escalation path
 - **Pubkey-only SSH** - password auth, PAM, root login all disabled
-- **No sudo, no curl, no wget** - removed at image build time to reduce escape surface
+- **No sudo** - removed at image build time to reduce escape surface
 - **Fresh host keys per container** - no host keys are baked into the image; unique keys are generated at container startup, preventing fingerprint-based MITM
 - **AUTHORIZED_KEY injection** - the Nforcer client passes an ephemeral public key via environment variable at container creation; the entrypoint writes it to `authorized_keys` and unsets the variable before exec'ing sshd
 - **SSH is the only entry point** - no exposed HTTP, no API surface
@@ -127,31 +128,60 @@ ssh -i /tmp/sandbox_key -p 2222 sandbox@127.0.0.1 bash -lc '
 
 > **Note:** These examples show API keys inline for clarity. In production, pass keys via environment variables at `docker run` time or mount a secrets file - never hardcode them.
 
+## Dev Container usage
+
+The `devcontainer` variant is designed for running AI agent extensions (Copilot, Claude Code, Cline, etc.) inside VSCode, Cursor, or Windsurf Dev Containers with nforcer monitoring. It builds on the node variant and adds the packages VSCode needs to bootstrap its Extension Host inside the container.
+
+Add a `.devcontainer/devcontainer.json` to your project:
+
+```json
+{
+  "image": "ghcr.io/sixways-ai/sixways-sandbox:devcontainer",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "sixways.endpoint"
+      ]
+    }
+  },
+  "remoteUser": "sandbox",
+  "workspaceFolder": "/workspace"
+}
+```
+
+The container stays alive via `sleep infinity` and VSCode attaches via `docker exec`. SSH is started in the background as an optional secondary access path.
+
 ## Building locally
 
-The node and python Dockerfiles inherit from `ghcr.io/sixways-ai/sixways-sandbox:latest`. To build entirely from source, tag the base image with that name so the derived builds resolve locally:
+The variant Dockerfiles inherit from `ghcr.io/sixways-ai/sixways-sandbox`. To build entirely from source, tag images with the GHCR name so derived builds resolve locally:
 
 **Linux / macOS / WSL:**
 
 ```bash
-# Build base image (tag it as the GHCR name so node/python resolve locally)
+# Build base image (tag it as the GHCR name so variants resolve locally)
 docker build -t sixways-sandbox:base \
   -t ghcr.io/sixways-ai/sixways-sandbox:latest \
   -f base/Dockerfile .
 
-# Build node variant
-docker build -t sixways-sandbox:node -f node/Dockerfile node/
+# Build node variant (tag with GHCR name so devcontainer resolves locally)
+docker build -t sixways-sandbox:node \
+  -t ghcr.io/sixways-ai/sixways-sandbox:node \
+  -f node/Dockerfile node/
 
 # Build python variant
 docker build -t sixways-sandbox:python -f python/Dockerfile python/
+
+# Build devcontainer variant
+docker build -t sixways-sandbox:devcontainer -f devcontainer/Dockerfile devcontainer/
 ```
 
 **Windows (PowerShell):**
 
 ```powershell
 docker build -t sixways-sandbox:base -t ghcr.io/sixways-ai/sixways-sandbox:latest -f base/Dockerfile .
-docker build -t sixways-sandbox:node -f node/Dockerfile node/
+docker build -t sixways-sandbox:node -t ghcr.io/sixways-ai/sixways-sandbox:node -f node/Dockerfile node/
 docker build -t sixways-sandbox:python -f python/Dockerfile python/
+docker build -t sixways-sandbox:devcontainer -f devcontainer/Dockerfile devcontainer/
 ```
 
 ## CI / GHCR publishing
@@ -171,9 +201,7 @@ ssh-keygen -t ed25519 -f /tmp/test_key -N ""
 docker run -d -p 2222:22 -e AUTHORIZED_KEY="$(cat /tmp/test_key.pub)" sixways-sandbox:base
 ssh -i /tmp/test_key -p 2222 -o StrictHostKeyChecking=no sandbox@127.0.0.1
 
-# Verify no dangerous tools
-which curl  # should fail
-which wget  # should fail
+# Verify no privilege escalation tools
 which sudo  # should fail
 ```
 

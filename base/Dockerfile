@@ -16,7 +16,7 @@ RUN apk add --no-cache \
     && chown sandbox:sandbox /home/sandbox/.ssh \
     && mkdir -p /workspace \
     && chown sandbox:sandbox /workspace \
-    && rm -f /usr/bin/wget /usr/bin/curl /usr/bin/sudo /usr/bin/su \
+    && rm -f /usr/bin/sudo /usr/bin/su \
     && rm -f /etc/ssh/ssh_host_*
 
 COPY sshd_config /etc/ssh/sshd_config
