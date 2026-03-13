@@ -1,4 +1,4 @@
-FROM cgr.dev/chainguard/wolfi-base:latest
+FROM cgr.dev/chainguard/wolfi-base:latest@sha256:f4cbf50ca3225eb55c2b9b17286cd06c7d030f801aa1275c5d90638dd6df5fe9
 
 RUN apk add --no-cache \
     openssh-server \

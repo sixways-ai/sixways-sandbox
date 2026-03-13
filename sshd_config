@@ -19,7 +19,7 @@ MaxSessions 5
 LoginGraceTime 30
 
 # Forwarding
-AllowTcpForwarding yes
+AllowTcpForwarding no
 GatewayPorts no
 X11Forwarding no
 AllowAgentForwarding no
