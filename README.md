@@ -37,7 +37,7 @@ For the Node.js variant, replace `:base` with `:node`. For Python, use `:python`
 - **Pubkey-only SSH** - password auth, PAM, root login all disabled
 - **No sudo** - removed at image build time to reduce escape surface
 - **Fresh host keys per container** - no host keys are baked into the image; unique keys are generated at container startup, preventing fingerprint-based MITM
-- **AUTHORIZED_KEY injection** - the Nforcer client passes an ephemeral public key via environment variable at container creation; the entrypoint writes it to `authorized_keys` and unsets the variable before exec'ing sshd
+- **AUTHORIZED_KEY injection** - the SixWays Endpoint client passes an ephemeral public key via environment variable at container creation; the entrypoint writes it to `authorized_keys` and unsets the variable before exec'ing sshd
 - **SSH is the only entry point** - no exposed HTTP, no API surface
 
 ## Recommended runtime flags
@@ -71,7 +71,7 @@ If the agent needs outbound access (e.g. `npm install`, `git clone`), replace `-
 
 ## Running AI coding agents
 
-The sandbox images don't ship with any agent pre-installed - agents are installed at runtime so you always get the latest version. The orchestrator (e.g. Nforcer) SSHs into the sandbox, installs the agent, and runs it.
+The sandbox images don't ship with any agent pre-installed - agents are installed at runtime so you always get the latest version. The orchestrator (e.g. SixWays Endpoint) SSHs into the sandbox, installs the agent, and runs it.
 
 ### Claude Code (Anthropic) - uses `:node`
 
@@ -130,7 +130,7 @@ ssh -i /tmp/sandbox_key -p 2222 sandbox@127.0.0.1 bash -lc '
 
 ## Dev Container usage
 
-The `devcontainer` variant is designed for running AI agent extensions (Copilot, Claude Code, Cline, etc.) inside VSCode, Cursor, or Windsurf Dev Containers with nforcer monitoring. It builds on the node variant and adds the packages VSCode needs to bootstrap its Extension Host inside the container.
+The `devcontainer` variant is designed for running AI agent extensions (Copilot, Claude Code, Cline, etc.) inside VSCode, Cursor, or Windsurf Dev Containers with endpoint monitoring. It builds on the node variant and adds the packages VSCode needs to bootstrap its Extension Host inside the container.
 
 Add a `.devcontainer/devcontainer.json` to your project:
 

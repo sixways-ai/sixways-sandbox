@@ -3,8 +3,8 @@ FROM ghcr.io/sixways-ai/sixways-sandbox:${BASE_TAG}
 
 RUN apk add --no-cache \
     procps \
-    && mkdir -p /var/run/nforcer \
-    && chown sandbox:sandbox /var/run/nforcer
+    && mkdir -p /var/run/endpoint \
+    && chown sandbox:sandbox /var/run/endpoint
 
 COPY --chmod=755 devcontainer/entrypoint-devcontainer.sh /entrypoint-devcontainer.sh
 
