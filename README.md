@@ -39,6 +39,8 @@ For the Node.js variant, replace `:base` with `:node`. For Python, use `:python`
 - **Fresh host keys per container** - no host keys are baked into the image; unique keys are generated at container startup, preventing fingerprint-based MITM
 - **AUTHORIZED_KEY injection** - the SixWays Endpoint client passes an ephemeral public key via environment variable at container creation; the entrypoint writes it to `authorized_keys` and unsets the variable before exec'ing sshd
 - **SSH is the only entry point** - no exposed HTTP, no API surface
+- **seccomp profile** - default-deny syscall filter (`seccomp-sandbox.json`) with explicit allowlist for SSH, git, and build tools
+- **TCP forwarding disabled** - `AllowTcpForwarding no` and `AllowStreamLocalForwarding no` in sshd_config prevent tunnel-based escapes
 
 ## Recommended runtime flags
 
@@ -55,6 +57,7 @@ docker run -d \
   -v sandbox-workspace:/workspace \
   -v sandbox-home:/home/sandbox \
   --network none \
+  --security-opt seccomp=seccomp-sandbox.json \
   ghcr.io/sixways-ai/sixways-sandbox:base
 ```
 
@@ -66,6 +69,7 @@ docker run -d \
 | `-v ...:/workspace` | Persistent writable workspace for the agent |
 | `-v ...:/home/sandbox` | Persistent home dir for SSH keys, shell history, npm cache |
 | `--network none` | No outbound network access; only the exposed SSH port is reachable |
+| `--security-opt seccomp=seccomp-sandbox.json` | Default-deny syscall filter with allowlist for SSH, git, and build tools |
 
 If the agent needs outbound access (e.g. `npm install`, `git clone`), replace `--network none` with a restricted Docker network or firewall rules.
 

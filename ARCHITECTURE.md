@@ -20,7 +20,8 @@ sshd_config            # Hardened SSH config (pubkey only, no root, no PAM)
 ## Key Abstractions
 
 - **Image hierarchy**: `base` -> `node` / `python` -> `devcontainer`. Each layer adds only what is needed.
-- **Security layers**: Wolfi base OS, non-root user (uid 1000), pubkey-only SSH authentication, no sudo, fresh host keys generated per container start.
+- **Security layers**: Wolfi base OS, non-root user (uid 1000), pubkey-only SSH authentication, no sudo, fresh host keys generated per container start, seccomp profile (`seccomp-sandbox.json`) — default-deny with explicit syscall allowlist for SSH, git, and build tools, TCP forwarding and tunneling disabled in sshd_config.
+- **Supply chain**: Base image pinned by SHA-256 digest for reproducible, supply-chain-safe builds.
 - **AUTHORIZED_KEY injection**: An ephemeral public key is passed via environment variable, written to `authorized_keys` at startup, and the environment variable is unset before execing sshd.
 - **SSH as sole entry point**: No HTTP server, no API surface. All access is through SSH, which provides IDE compatibility and auditability.
 
