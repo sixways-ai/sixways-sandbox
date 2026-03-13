@@ -1,0 +1,98 @@
+{
+  "defaultAction": "SCMP_ACT_ERRNO",
+  "defaultErrnoRet": 1,
+  "archMap": [
+    { "architecture": "SCMP_ARCH_X86_64", "subArchitectures": ["SCMP_ARCH_X86"] },
+    { "architecture": "SCMP_ARCH_AARCH64", "subArchitectures": [] }
+  ],
+  "syscalls": [
+    {
+      "comment": "Standard process lifecycle",
+      "names": [
+        "read", "write", "close", "fstat", "lstat", "stat", "newfstatat",
+        "poll", "ppoll", "lseek", "mmap", "mprotect", "munmap", "brk",
+        "rt_sigaction", "rt_sigprocmask", "rt_sigreturn", "ioctl",
+        "pread64", "pwrite64", "readv", "writev", "access", "faccessat",
+        "faccessat2", "pipe", "pipe2", "select", "pselect6",
+        "sched_yield", "mremap", "msync", "mincore", "madvise",
+        "dup", "dup2", "dup3", "nanosleep", "clock_nanosleep",
+        "getpid", "getppid", "getuid", "geteuid", "getgid", "getegid",
+        "getresuid", "getresgid", "getgroups",
+        "sigaltstack", "uname", "gettimeofday", "clock_gettime",
+        "clock_getres", "getrlimit", "setrlimit", "prlimit64",
+        "sysinfo", "times", "getrusage"
+      ],
+      "action": "SCMP_ACT_ALLOW"
+    },
+    {
+      "comment": "File operations (git, code editing, SSH)",
+      "names": [
+        "open", "openat", "openat2", "creat",
+        "rename", "renameat", "renameat2",
+        "unlink", "unlinkat", "rmdir",
+        "mkdir", "mkdirat",
+        "link", "linkat", "symlink", "symlinkat",
+        "readlink", "readlinkat",
+        "chmod", "fchmod", "fchmodat",
+        "chown", "fchown", "lchown", "fchownat",
+        "truncate", "ftruncate",
+        "fcntl", "flock",
+        "fsync", "fdatasync",
+        "getcwd", "chdir", "fchdir",
+        "getdents", "getdents64",
+        "statfs", "fstatfs", "statx",
+        "utimensat", "futimesat",
+        "copy_file_range", "sendfile"
+      ],
+      "action": "SCMP_ACT_ALLOW"
+    },
+    {
+      "comment": "Process execution (git, build tools, language runtimes)",
+      "names": [
+        "execve", "execveat",
+        "clone", "clone3", "fork", "vfork",
+        "wait4", "waitid",
+        "exit", "exit_group",
+        "kill", "tgkill", "tkill",
+        "set_tid_address", "set_robust_list", "get_robust_list",
+        "futex", "futex_waitv",
+        "prctl", "arch_prctl",
+        "setpgid", "getpgid", "getpgrp", "setsid", "getsid"
+      ],
+      "action": "SCMP_ACT_ALLOW"
+    },
+    {
+      "comment": "Networking (SSH, git clone, package managers)",
+      "names": [
+        "socket", "connect", "accept", "accept4",
+        "sendto", "recvfrom", "sendmsg", "recvmsg",
+        "bind", "listen", "getsockname", "getpeername",
+        "socketpair", "setsockopt", "getsockopt",
+        "shutdown", "epoll_create", "epoll_create1",
+        "epoll_ctl", "epoll_wait", "epoll_pwait", "epoll_pwait2",
+        "eventfd", "eventfd2", "signalfd", "signalfd4",
+        "timerfd_create", "timerfd_settime", "timerfd_gettime"
+      ],
+      "action": "SCMP_ACT_ALLOW"
+    },
+    {
+      "comment": "Memory and threading",
+      "names": [
+        "mlock", "munlock", "mlockall", "munlockall",
+        "membarrier", "rseq",
+        "getrandom", "sched_getaffinity", "sched_setaffinity",
+        "sched_getscheduler", "sched_setscheduler",
+        "sched_getparam", "sched_setparam"
+      ],
+      "action": "SCMP_ACT_ALLOW"
+    },
+    {
+      "comment": "Terminal / PTY (SSH sessions)",
+      "names": [
+        "tty", "isatty"
+      ],
+      "action": "SCMP_ACT_ALLOW",
+      "errnoRet": 25
+    }
+  ]
+}
