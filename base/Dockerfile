@@ -16,6 +16,10 @@ RUN apk add --no-cache \
     && chown sandbox:sandbox /home/sandbox/.ssh \
     && mkdir -p /workspace \
     && chown sandbox:sandbox /workspace \
+    && mkdir -p /mnt \
+    && chown sandbox:sandbox /mnt \
+    && mkdir -p /home/sandbox/.npm /home/sandbox/.cache/pip /home/sandbox/.cargo/registry \
+    && chown -R sandbox:sandbox /home/sandbox/.npm /home/sandbox/.cache /home/sandbox/.cargo \
     && rm -f /usr/bin/sudo /usr/bin/su \
     && rm -f /etc/ssh/ssh_host_*
 
