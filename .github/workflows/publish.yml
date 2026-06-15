@@ -114,7 +114,12 @@ jobs:
           cosign sign --yes "${IMAGE}@${BASE_DIGEST}"
           cosign sign --yes "${IMAGE}@${NODE_DIGEST}"
 
+      # GitHub's attestation API requires a public repo (or a paid plan) for the
+      # org, so SLSA provenance is gated on visibility: skipped while the repo is
+      # private (pre-launch), runs automatically once it's public. Non-gating
+      # (Layer 2) either way.
       - name: SLSA provenance (base)
+        if: ${{ github.event.repository.visibility == 'public' }}
         uses: actions/attest-build-provenance@v1
         with:
           subject-name: ${{ env.IMAGE }}
@@ -122,6 +127,7 @@ jobs:
           push-to-registry: true
 
       - name: SLSA provenance (node)
+        if: ${{ github.event.repository.visibility == 'public' }}
         uses: actions/attest-build-provenance@v1
         with:
           subject-name: ${{ env.IMAGE }}
