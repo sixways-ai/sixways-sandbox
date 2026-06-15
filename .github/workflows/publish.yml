@@ -44,7 +44,7 @@ jobs:
     name: Build, scan & sign (cosign) sandbox images
     runs-on: [self-hosted, macOS, ARM64, yubihsm]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Registry login (ghcr)
         run: |
