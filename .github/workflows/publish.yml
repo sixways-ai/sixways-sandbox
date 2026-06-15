@@ -53,9 +53,14 @@ jobs:
 
       - name: Registry login (ghcr)
         run: |
+          # Write the ghcr credential inline rather than `docker login`/`oras
+          # login`: on this macOS runner those invoke the osxkeychain helper,
+          # which fails with "User interaction is not allowed (-25308)" in the
+          # non-interactive runner session. buildx, oras, and cosign all read
+          # this config.json, so inline auth covers every step.
           mkdir -p "$DOCKER_CONFIG"
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-          echo "${{ secrets.GITHUB_TOKEN }}" | oras login ghcr.io -u ${{ github.actor }} --password-stdin
+          auth=$(printf '%s' "${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}" | base64 | tr -d '\n')
+          printf '{"auths":{"ghcr.io":{"auth":"%s"}}}\n' "$auth" > "$DOCKER_CONFIG/config.json"
 
       - name: Fetch pinned manifest signer
         run: |
