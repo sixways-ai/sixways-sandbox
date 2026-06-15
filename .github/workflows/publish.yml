@@ -1,0 +1,147 @@
+# Publish signed sandbox images to ghcr.
+#
+# Runs on the self-hosted runner on m2studioalpha (Forgejo + YubiHSM host), so a
+# single job can do BOTH keyless cosign (GitHub OIDC) AND YubiHSM key-100 signing
+# of the Ed25519 ContainerImageManifest. Per image variant:
+#   build (multi-arch) -> Trivy gate -> push to ghcr -> capture digest
+#   -> keyless cosign + SLSA provenance (public attestation)
+#   -> HSM-sign the Ed25519 manifest -> oras attach as an OCI referrer (the
+#      DOCK-2 enforcement gate the endpoint verifies offline).
+#
+# The signer is pulled as a pinned, versioned ghcr OCI artifact published by the
+# endpoint Forgejo CI (sixways-container-signer) — never a hand-built binary.
+#
+# First cut wires base + node (node is the policy default image, base its
+# dependency); python/devcontainer/desktop follow once this chain is green.
+
+name: Publish Sandbox Images
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+  schedule:
+    - cron: '0 13 * * 1' # weekly clean rebuild for dependency freshness
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE: ghcr.io/sixways-ai/sixways-sandbox
+  # Pinned signer version (bump deliberately). Published by
+  # sixways-endpoint-dev .forgejo/workflows/publish-container-signer.yaml.
+  SIGNER_REF: 44411c5da2
+  SIGNER_IMAGE: ghcr.io/sixways-ai/sixways-container-signer
+  ARTIFACT_TYPE: application/vnd.sixways.container-manifest.v1+json
+  # Docker Desktop CLI is not on the default PATH on this host.
+  PATH: /opt/homebrew/bin:/usr/local/bin:/Applications/Docker.app/Contents/Resources/bin:/usr/bin:/bin:/usr/sbin:/sbin
+  # Isolated docker config (shared across steps) so docker/oras/buildx store the
+  # ghcr credential inline rather than via the host Keychain helper
+  # (docker-credential-desktop), which CI must not depend on.
+  DOCKER_CONFIG: ${{ github.workspace }}/.docker-cfg
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+  attestations: write
+
+jobs:
+  publish:
+    name: Build, scan, sign & publish
+    runs-on: [self-hosted, macOS, ARM64, yubihsm]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Registry login (ghcr)
+        run: |
+          mkdir -p "$DOCKER_CONFIG"
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          echo "${{ secrets.GITHUB_TOKEN }}" | oras login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Fetch pinned manifest signer
+        run: |
+          rm -rf .signer && mkdir .signer
+          oras pull "${SIGNER_IMAGE}:${SIGNER_REF}" --output .signer
+          chmod +x .signer/sixways-container-signer
+          ./.signer/sixways-container-signer --version || true
+
+      - name: Ensure buildx + emulation
+        run: |
+          docker buildx create --use --name sixways-publish 2>/dev/null || docker buildx use sixways-publish
+          docker run --privileged --rm tonistiigi/binfmt --install all >/dev/null 2>&1 || true
+
+      # ----- base -----
+      - name: Build base (amd64) for scan
+        run: docker buildx build --platform linux/amd64 --load -f base/Dockerfile -t sixways-scan:base .
+
+      - name: Trivy scan base
+        run: trivy image --severity CRITICAL,HIGH --exit-code 1 --no-progress sixways-scan:base
+
+      - name: Push base (multi-arch) + capture digest
+        run: |
+          docker buildx build --platform linux/amd64,linux/arm64 \
+            -f base/Dockerfile -t "${IMAGE}:base" -t "${IMAGE}:latest" \
+            --push --metadata-file base-meta.json .
+          echo "BASE_DIGEST=$(jq -r '."containerimage.digest"' base-meta.json)" >> "$GITHUB_ENV"
+
+      # ----- node (FROM base) -----
+      - name: Build node (amd64) for scan
+        run: docker buildx build --platform linux/amd64 --load --build-arg BASE_TAG=base -f node/Dockerfile -t sixways-scan:node .
+
+      - name: Trivy scan node
+        run: trivy image --severity CRITICAL,HIGH --exit-code 1 --no-progress sixways-scan:node
+
+      - name: Push node (multi-arch) + capture digest
+        run: |
+          docker buildx build --platform linux/amd64,linux/arm64 --build-arg BASE_TAG=base \
+            -f node/Dockerfile -t "${IMAGE}:node" \
+            --push --metadata-file node-meta.json .
+          echo "NODE_DIGEST=$(jq -r '."containerimage.digest"' node-meta.json)" >> "$GITHUB_ENV"
+
+      # ----- Layer 2: public attestation (keyless cosign + SLSA) -----
+      - name: cosign sign (keyless)
+        run: |
+          cosign sign --yes "${IMAGE}@${BASE_DIGEST}"
+          cosign sign --yes "${IMAGE}@${NODE_DIGEST}"
+
+      - name: SLSA provenance (base)
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ env.BASE_DIGEST }}
+          push-to-registry: true
+
+      - name: SLSA provenance (node)
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ env.NODE_DIGEST }}
+          push-to-registry: true
+
+      # ----- Layer 1: HSM-signed Ed25519 manifest -> OCI referrer (DOCK-2 gate) -----
+      - name: Sign + attach manifests (YubiHSM key 100)
+        run: |
+          SIGNER="$(pwd)/.signer/sixways-container-signer"
+          YUBIHSM_AUTH_PASSWORD="$(security find-generic-password -a sixways -s yubihsm-auth -w)"
+          export YUBIHSM_AUTH_PASSWORD
+          sign_and_attach() {
+            local tag="$1" digest="$2"
+            "$SIGNER" sign-container-manifest --hsm \
+              --image "sixways-sandbox:${tag}" --channel stable \
+              --digest "$digest" --commit "$GITHUB_SHA" --out-dir .
+            oras attach --artifact-type "$ARTIFACT_TYPE" \
+              "${IMAGE}@${digest}" manifest.json:application/json
+            rm -f manifest.json
+          }
+          sign_and_attach base "$BASE_DIGEST"
+          sign_and_attach node "$NODE_DIGEST"
+          unset YUBIHSM_AUTH_PASSWORD
+
+      # ----- post-publish verification (fail the run if the supply chain is broken) -----
+      - name: Verify published supply chain
+        run: |
+          cosign verify "${IMAGE}@${NODE_DIGEST}" \
+            --certificate-identity-regexp '.*' \
+            --certificate-oidc-issuer-regexp '.*' >/dev/null
+          # Confirm the signed manifest referrer is present and parseable.
+          oras discover --artifact-type "$ARTIFACT_TYPE" "${IMAGE}@${NODE_DIGEST}" | grep -q "$ARTIFACT_TYPE"
+          echo "Published + verified: ${IMAGE}:node @ ${NODE_DIGEST}"

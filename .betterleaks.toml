@@ -1,0 +1,16 @@
+# Betterleaks configuration for SixWays repos.
+# Copy as .betterleaks.toml to each repo root.
+# Excludes test fixtures and build artifacts that contain intentional fake secrets.
+
+[allowlist]
+paths = [
+    '''target/''',
+    '''.*_test\.go$''',
+    '''test/''',
+    '''tests/''',
+    '''testdata/''',
+    '''fixtures/''',
+    '''docs/testing-auto-update\.md$''',
+    '''secret_scanner/''',
+    '''kinetic_egress_test\.go$''',
+]
