@@ -1,15 +1,15 @@
-# Publish signed sandbox images to ghcr.
+# Publish signed sandbox images to ghcr (GitHub Actions half).
 #
-# Runs on the self-hosted runner on m2studioalpha (Forgejo + YubiHSM host), so a
-# single job can do BOTH keyless cosign (GitHub OIDC) AND YubiHSM key-100 signing
-# of the Ed25519 ContainerImageManifest. Per image variant:
+# Runs on the self-hosted runner on m2studioalpha. This half does everything
+# that needs GitHub's OIDC (keyless cosign, SLSA provenance) plus the image
+# build/scan/push. Per image variant:
 #   build (multi-arch) -> Trivy gate -> push to ghcr -> capture digest
-#   -> keyless cosign + SLSA provenance (public attestation)
-#   -> HSM-sign the Ed25519 manifest -> oras attach as an OCI referrer (the
-#      DOCK-2 enforcement gate the endpoint verifies offline).
+#   -> keyless cosign + SLSA provenance (public attestation, Layer 2)
 #
-# The signer is pulled as a pinned, versioned ghcr OCI artifact published by the
-# endpoint Forgejo CI (sixways-container-signer) — never a hand-built binary.
+# The Layer-1 enforcement gate (Ed25519 ContainerImageManifest signed by YubiHSM
+# key 100, attached as an OCI referrer) is produced by the SEPARATE Forgejo
+# workflow `.forgejo/workflows/sign-sandbox-manifests.yaml`, so the HSM auth
+# password never leaves the Forgejo secret store. Run that after this publishes.
 #
 # First cut wires base + node (node is the policy default image, base its
 # dependency); python/devcontainer/desktop follow once this chain is green.
@@ -26,11 +26,6 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE: ghcr.io/sixways-ai/sixways-sandbox
-  # Pinned signer version (bump deliberately). Published by
-  # sixways-endpoint-dev .forgejo/workflows/publish-container-signer.yaml.
-  SIGNER_REF: 44411c5da2
-  SIGNER_IMAGE: ghcr.io/sixways-ai/sixways-container-signer
-  ARTIFACT_TYPE: application/vnd.sixways.container-manifest.v1+json
   # Docker Desktop CLI is not on the default PATH on this host.
   PATH: /opt/homebrew/bin:/usr/local/bin:/Applications/Docker.app/Contents/Resources/bin:/usr/bin:/bin:/usr/sbin:/sbin
   # Isolated docker config (shared across steps) so docker/oras/buildx store the
@@ -46,7 +41,7 @@ permissions:
 
 jobs:
   publish:
-    name: Build, scan, sign & publish
+    name: Build, scan & sign (cosign) sandbox images
     runs-on: [self-hosted, macOS, ARM64, yubihsm]
     steps:
       - uses: actions/checkout@v4
@@ -63,17 +58,9 @@ jobs:
           # the isolated config dir hides the host's, so link them back in.
           ln -sfn "$HOME/.docker/cli-plugins" "$DOCKER_CONFIG/cli-plugins"
           # Use a PAT (write:packages) rather than the automatic GITHUB_TOKEN:
-          # GITHUB_TOKEN can't create/write the org-owned ghcr package (403),
-          # the same reason the signer publish uses a PAT.
+          # GITHUB_TOKEN can't create/write the org-owned ghcr package (403).
           auth=$(printf '%s' "${{ github.actor }}:${{ secrets.GHCR_PUSH_TOKEN }}" | base64 | tr -d '\n')
           printf '{"auths":{"ghcr.io":{"auth":"%s"}}}\n' "$auth" > "$DOCKER_CONFIG/config.json"
-
-      - name: Fetch pinned manifest signer
-        run: |
-          rm -rf .signer && mkdir .signer
-          oras pull "${SIGNER_IMAGE}:${SIGNER_REF}" --output .signer
-          chmod +x .signer/sixways-container-signer
-          ./.signer/sixways-container-signer --version || true
 
       - name: Ensure buildx + emulation
         run: |
@@ -134,31 +121,13 @@ jobs:
           subject-digest: ${{ env.NODE_DIGEST }}
           push-to-registry: true
 
-      # ----- Layer 1: HSM-signed Ed25519 manifest -> OCI referrer (DOCK-2 gate) -----
-      - name: Sign + attach manifests (YubiHSM key 100)
+      - name: Verify cosign signatures
         run: |
-          SIGNER="$(pwd)/.signer/sixways-container-signer"
-          YUBIHSM_AUTH_PASSWORD="$(security find-generic-password -a sixways -s yubihsm-auth -w)"
-          export YUBIHSM_AUTH_PASSWORD
-          sign_and_attach() {
-            local tag="$1" digest="$2"
-            "$SIGNER" sign-container-manifest --hsm \
-              --image "sixways-sandbox:${tag}" --channel stable \
-              --digest "$digest" --commit "$GITHUB_SHA" --out-dir .
-            oras attach --artifact-type "$ARTIFACT_TYPE" \
-              "${IMAGE}@${digest}" manifest.json:application/json
-            rm -f manifest.json
-          }
-          sign_and_attach base "$BASE_DIGEST"
-          sign_and_attach node "$NODE_DIGEST"
-          unset YUBIHSM_AUTH_PASSWORD
-
-      # ----- post-publish verification (fail the run if the supply chain is broken) -----
-      - name: Verify published supply chain
-        run: |
+          cosign verify "${IMAGE}@${BASE_DIGEST}" \
+            --certificate-identity-regexp '.*' \
+            --certificate-oidc-issuer-regexp '.*' >/dev/null
           cosign verify "${IMAGE}@${NODE_DIGEST}" \
             --certificate-identity-regexp '.*' \
             --certificate-oidc-issuer-regexp '.*' >/dev/null
-          # Confirm the signed manifest referrer is present and parseable.
-          oras discover --artifact-type "$ARTIFACT_TYPE" "${IMAGE}@${NODE_DIGEST}" | grep -q "$ARTIFACT_TYPE"
-          echo "Published + verified: ${IMAGE}:node @ ${NODE_DIGEST}"
+          echo "Pushed + cosign-verified base@${BASE_DIGEST} node@${NODE_DIGEST}"
+          echo "Next: run the Forgejo 'Sign Sandbox Manifests' workflow to attach the HSM-signed Ed25519 manifests."
