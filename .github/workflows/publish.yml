@@ -120,7 +120,7 @@ jobs:
       # (Layer 2) either way.
       - name: SLSA provenance (base)
         if: ${{ github.event.repository.visibility == 'public' }}
-        uses: actions/attest-build-provenance@v1
+        uses: actions/attest-build-provenance@v4
         with:
           subject-name: ${{ env.IMAGE }}
           subject-digest: ${{ env.BASE_DIGEST }}
@@ -128,7 +128,7 @@ jobs:
 
       - name: SLSA provenance (node)
         if: ${{ github.event.repository.visibility == 'public' }}
-        uses: actions/attest-build-provenance@v1
+        uses: actions/attest-build-provenance@v4
         with:
           subject-name: ${{ env.IMAGE }}
           subject-digest: ${{ env.NODE_DIGEST }}
