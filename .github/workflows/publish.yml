@@ -59,6 +59,9 @@ jobs:
           # non-interactive runner session. buildx, oras, and cosign all read
           # this config.json, so inline auth covers every step.
           mkdir -p "$DOCKER_CONFIG"
+          # Docker resolves CLI plugins (buildx) under $DOCKER_CONFIG/cli-plugins;
+          # the isolated config dir hides the host's, so link them back in.
+          ln -sfn "$HOME/.docker/cli-plugins" "$DOCKER_CONFIG/cli-plugins"
           auth=$(printf '%s' "${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}" | base64 | tr -d '\n')
           printf '{"auths":{"ghcr.io":{"auth":"%s"}}}\n' "$auth" > "$DOCKER_CONFIG/config.json"
 
