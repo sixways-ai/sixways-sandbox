@@ -1,0 +1,5 @@
+devcontainer/extensions/*.vsix
+
+# microvm-* variants COPY in-guest binaries built from sixways-endpoint-dev.
+# Staged at build time by the operator (locally) or by CI (Phase A.1).
+microvm/_artifacts/
