@@ -1,0 +1,131 @@
+{
+  "defaultAction": "SCMP_ACT_ERRNO",
+  "defaultErrnoRet": 1,
+  "archMap": [
+    { "architecture": "SCMP_ARCH_X86_64", "subArchitectures": ["SCMP_ARCH_X86"] },
+    { "architecture": "SCMP_ARCH_AARCH64", "subArchitectures": [] }
+  ],
+  "syscalls": [
+    {
+      "comment": "Standard process lifecycle",
+      "names": [
+        "read", "write", "close", "fstat", "lstat", "stat", "newfstatat",
+        "poll", "ppoll", "lseek", "mmap", "mprotect", "munmap", "brk",
+        "rt_sigaction", "rt_sigprocmask", "rt_sigreturn", "ioctl",
+        "pread64", "pwrite64", "readv", "writev", "access", "faccessat",
+        "faccessat2", "pipe", "pipe2", "select", "pselect6",
+        "sched_yield", "mremap", "msync", "mincore", "madvise",
+        "dup", "dup2", "dup3", "nanosleep", "clock_nanosleep",
+        "getpid", "getppid", "getuid", "geteuid", "getgid", "getegid",
+        "getresuid", "getresgid", "getgroups",
+        "sigaltstack", "uname", "gettimeofday", "clock_gettime",
+        "clock_getres", "getrlimit", "setrlimit", "prlimit64",
+        "sysinfo", "times", "getrusage"
+      ],
+      "action": "SCMP_ACT_ALLOW"
+    },
+    {
+      "comment": "File operations (git, code editing, SSH)",
+      "names": [
+        "open", "openat", "openat2", "creat",
+        "rename", "renameat", "renameat2",
+        "unlink", "unlinkat", "rmdir",
+        "mkdir", "mkdirat",
+        "link", "linkat", "symlink", "symlinkat",
+        "readlink", "readlinkat",
+        "chmod", "fchmod", "fchmodat",
+        "chown", "fchown", "lchown", "fchownat",
+        "truncate", "ftruncate",
+        "fcntl", "flock",
+        "fsync", "fdatasync",
+        "getcwd", "chdir", "fchdir",
+        "getdents", "getdents64",
+        "statfs", "fstatfs", "statx",
+        "utimensat", "futimesat",
+        "copy_file_range", "sendfile"
+      ],
+      "action": "SCMP_ACT_ALLOW"
+    },
+    {
+      "comment": "Process execution (git, build tools, language runtimes)",
+      "names": [
+        "execve", "execveat",
+        "clone", "clone3", "fork", "vfork",
+        "wait4", "waitid",
+        "exit", "exit_group",
+        "kill", "tgkill", "tkill",
+        "set_tid_address", "set_robust_list", "get_robust_list",
+        "futex", "futex_waitv",
+        "prctl", "arch_prctl",
+        "setpgid", "getpgid", "getpgrp", "setsid", "getsid"
+      ],
+      "action": "SCMP_ACT_ALLOW"
+    },
+    {
+      "comment": "Networking (SSH, git clone, package managers)",
+      "names": [
+        "socket", "connect", "accept", "accept4",
+        "sendto", "recvfrom", "sendmsg", "recvmsg",
+        "bind", "listen", "getsockname", "getpeername",
+        "socketpair", "setsockopt", "getsockopt",
+        "shutdown", "epoll_create", "epoll_create1",
+        "epoll_ctl", "epoll_wait", "epoll_pwait", "epoll_pwait2",
+        "eventfd", "eventfd2", "signalfd", "signalfd4",
+        "timerfd_create", "timerfd_settime", "timerfd_gettime"
+      ],
+      "action": "SCMP_ACT_ALLOW"
+    },
+    {
+      "comment": "Memory and threading",
+      "names": [
+        "mlock", "munlock", "mlockall", "munlockall",
+        "membarrier", "rseq",
+        "getrandom", "sched_getaffinity", "sched_setaffinity",
+        "sched_getscheduler", "sched_setscheduler",
+        "sched_getparam", "sched_setparam"
+      ],
+      "action": "SCMP_ACT_ALLOW"
+    },
+    {
+      "comment": "Privilege drop: the generated entrypoint starts as root and su's to the unprivileged sandbox user; sshd privilege separation switches users too. Gated in-container by CAP_SETUID/SETGID/SETPCAP. Without these the su in the entrypoint fails with 'su: can't set groups: Operation not permitted' and the container exits before the agent ever runs, which in turn degrades eBPF monitoring (the sidecar cannot inspect a container that is already gone).",
+      "names": [
+        "setuid", "setgid", "setgroups",
+        "setresuid", "setresgid",
+        "setreuid", "setregid",
+        "setfsuid", "setfsgid",
+        "capset"
+      ],
+      "action": "SCMP_ACT_ALLOW"
+    },
+    {
+      "comment": "Agent runtime install. update_on_launch npm-installs the agent CLI into the sandbox; node-tar calls umask() while unpacking so it can reproduce each archive entry's exact mode. Denying umask() (SCMP_ACT_ERRNO -> EPERM) makes tar unpack the package's bin stub non-writable, so an agent whose postinstall rewrites that stub in place (e.g. claude-code copying its native binary over bin/claude.exe) fails with EACCES; the CLI never lands on PATH, the agent exits immediately, and the profiler capture (and any real run) sees the agent die before it does any work. capget() is node's benign capability probe on the same install path. Both are in the runtime default profile.",
+      "names": [
+        "umask",
+        "capget"
+      ],
+      "action": "SCMP_ACT_ALLOW"
+    },
+    {
+      "comment": "Agent runtime workflows that the base groups miss. inotify_* backs filesystem watchers (fs.watch, tsc/vite/next/nodemon/jest --watch, LSP and dev-server file watchers) which are mainstream agent tasks; denying them (EPERM) makes watching silently stop. sendmmsg/recvmmsg back glibc's parallel A+AAAA resolver on the Wolfi glibc base, and EPERM (not ENOSYS) makes getaddrinfo fail rather than fall back, breaking name resolution for git/npm/pip and curl-based installers. restart_syscall resumes an SA_RESTART syscall interrupted by a signal; rt_sigtimedwait and friends back sigwait/sigtimedwait signal handling. memfd_create and close_range are used by modern runtimes, gpg, and posix_spawn. All are in the runtime default profile.",
+      "names": [
+        "inotify_init", "inotify_init1", "inotify_add_watch", "inotify_rm_watch",
+        "sendmmsg", "recvmmsg",
+        "restart_syscall",
+        "rt_sigtimedwait", "rt_sigsuspend", "rt_sigpending",
+        "rt_sigqueueinfo", "rt_tgsigqueueinfo",
+        "memfd_create", "close_range"
+      ],
+      "action": "SCMP_ACT_ALLOW"
+    },
+    {
+      "comment": "Deny newer optional syscalls with ENOSYS instead of the default EPERM so libc and language-runtime feature probes fall back cleanly rather than hard-failing: pidfd process managers fall back to kill(2), io_uring falls back to epoll, landlock is skipped. Mirrors the moby default profile's ENOSYS block. defaultErrnoRet stays EPERM for everything else unlisted.",
+      "names": [
+        "pidfd_open", "pidfd_send_signal", "pidfd_getfd",
+        "io_uring_setup", "io_uring_enter", "io_uring_register",
+        "landlock_create_ruleset", "landlock_add_rule", "landlock_restrict_self"
+      ],
+      "action": "SCMP_ACT_ERRNO",
+      "errnoRet": 38
+    }
+  ]
+}

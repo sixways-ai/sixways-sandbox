@@ -1,0 +1,13 @@
+SixWays Sandbox
+Copyright 2026 ncdents, LLC
+
+This product is licensed under the Apache License, Version 2.0. See LICENSE.
+
+"SixWays" and the SixWays logo are trademarks of ncdents, LLC. The Apache
+License does not grant permission to use them. See LICENSE section 6.
+
+The images built from this source are based on the Wolfi base image
+(cgr.dev/chainguard/wolfi-base) and install packages from the Wolfi package
+repositories, both maintained by Chainguard. Those packages are third-party
+software distributed under their own license terms, which are not altered by
+the license above.
