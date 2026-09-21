@@ -2,7 +2,7 @@
 # each freshness pass (and re-resolved by the weekly scheduled rebuild). The
 # published image's own digest is what gets cosign-signed + recorded in the
 # Ed25519 manifest, so the supply-chain anchor is the output, not this input.
-FROM cgr.dev/chainguard/wolfi-base@sha256:02dab76bd852a70556b5b2002195c8a5fdab77d323c433bf6642aab080489795
+FROM cgr.dev/chainguard/wolfi-base@sha256:1d95114038f76513a9ace6fca107d5582b08c65981f81f61cb56bf7fd2ef216d
 
 # Upgrade preinstalled base packages, then install ours — both pull the latest
 # Wolfi package versions at build time (apk --no-cache fetches a fresh index).
