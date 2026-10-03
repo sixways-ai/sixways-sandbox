@@ -1,0 +1,33 @@
+#!/bin/bash
+# git-ssh-sign-sixways: guarded `gpg.ssh.program` for the SixWays sandbox
+# images (brokered git signing, spec 5.4/5.5).
+#
+# Purpose: baked into every image as the system-level `gpg.ssh.program`
+# (with `gpg.format = ssh`). git invokes the signing program with
+# ssh-keygen's argument shape (`-Y sign -n git -f <keyfile> ...`). When the
+# SixWays endpoint launches the container it bind-mounts the host-side
+# broker shim read-only at /usr/local/bin/sixways-git-shim; the shim
+# detects the `-Y` form and signs with the per-device agent key via the
+# broker, so the private key never enters the sandbox.
+#
+# When the shim is NOT mounted, fall back to the real ssh-keygen so
+# standalone `git commit -S` with a user-supplied key keeps working.
+# Images without openssh-client (the microvm variants) get a clear error
+# instead. Signing only happens when explicitly requested (`commit.gpgsign`
+# is not set in the image), so this program is inactive by default.
+#
+# Usage (invoked by git): git-ssh-sign-sixways -Y sign -n git -f <keyfile> <file>
+set -uo pipefail
+
+SHIM=/usr/local/bin/sixways-git-shim
+
+if [ -x "$SHIM" ]; then
+    exec "$SHIM" "$@"
+fi
+
+if command -v ssh-keygen >/dev/null 2>&1; then
+    exec ssh-keygen "$@"
+fi
+
+echo "sixways: git ssh signing unavailable: sixways-git-shim is not mounted and ssh-keygen is not installed" >&2
+exit 1

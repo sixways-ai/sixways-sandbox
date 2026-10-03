@@ -1,0 +1,9 @@
+devcontainer/extensions/*.vsix
+
+# microvm-* variants COPY in-guest binaries built from sixways-endpoint-dev.
+# Staged at build time by the operator (locally) or by CI (Phase A.1).
+microvm/_artifacts/
+
+# sixways-mcp-proxy binaries are built from the commit pinned in common/mcp-proxy/PROVENANCE
+# by scripts/build-mcp-proxy.sh and verified against the committed SHA256SUMS; never committed.
+common/mcp-proxy/sixways-mcp-proxy-linux-*

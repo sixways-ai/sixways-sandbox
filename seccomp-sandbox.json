@@ -1,0 +1,135 @@
+{
+  "defaultAction": "SCMP_ACT_ERRNO",
+  "defaultErrnoRet": 1,
+  "archMap": [
+    { "architecture": "SCMP_ARCH_X86_64", "subArchitectures": ["SCMP_ARCH_X86"] },
+    { "architecture": "SCMP_ARCH_AARCH64", "subArchitectures": [] }
+  ],
+  "syscalls": [
+    {
+      "comment": "Standard process lifecycle",
+      "names": [
+        "read", "write", "close", "fstat", "lstat", "stat", "newfstatat",
+        "poll", "ppoll", "lseek", "mmap", "mprotect", "munmap", "brk",
+        "rt_sigaction", "rt_sigprocmask", "rt_sigreturn", "ioctl",
+        "pread64", "pwrite64", "readv", "writev", "access", "faccessat",
+        "faccessat2", "pipe", "pipe2", "select", "pselect6",
+        "sched_yield", "mremap", "msync", "mincore", "madvise",
+        "dup", "dup2", "dup3", "nanosleep", "clock_nanosleep",
+        "getpid", "getppid", "getuid", "geteuid", "getgid", "getegid",
+        "getresuid", "getresgid", "getgroups",
+        "sigaltstack", "uname", "gettimeofday", "clock_gettime",
+        "clock_getres", "getrlimit", "setrlimit", "prlimit64",
+        "sysinfo", "times", "getrusage"
+      ],
+      "action": "SCMP_ACT_ALLOW"
+    },
+    {
+      "comment": "File operations for Git, code editing, SSH, and native builds. Extended attributes are required by native builds. Python's shutil.copystat() calls os.listxattr() and rethrows EPERM, so omitting listxattr causes the setuptools egg-info step and source-built Python wheels to fail. It also breaks `cp -a`, `rsync -X`, and tar archives with extended attributes. Writing the privileged security.* namespace, including security.capability, requires CAP_SETFCAP, which the sandbox process does not have. The kernel therefore rejects those writes independently of seccomp, while user.* attributes remain unprivileged metadata. Docker's default profile allows these syscalls. fallocate only preallocates storage and is also in Docker's default allowlist.",
+      "names": [
+        "open", "openat", "openat2", "creat",
+        "rename", "renameat", "renameat2",
+        "unlink", "unlinkat", "rmdir",
+        "mkdir", "mkdirat",
+        "link", "linkat", "symlink", "symlinkat",
+        "readlink", "readlinkat",
+        "chmod", "fchmod", "fchmodat",
+        "chown", "fchown", "lchown", "fchownat",
+        "truncate", "ftruncate", "fallocate",
+        "getxattr", "lgetxattr", "fgetxattr",
+        "setxattr", "lsetxattr", "fsetxattr",
+        "listxattr", "llistxattr", "flistxattr",
+        "removexattr", "lremovexattr", "fremovexattr",
+        "fcntl", "flock",
+        "fsync", "fdatasync",
+        "getcwd", "chdir", "fchdir",
+        "getdents", "getdents64",
+        "statfs", "fstatfs", "statx",
+        "utimensat", "futimesat",
+        "copy_file_range", "sendfile"
+      ],
+      "action": "SCMP_ACT_ALLOW"
+    },
+    {
+      "comment": "Process execution (git, build tools, language runtimes)",
+      "names": [
+        "execve", "execveat",
+        "clone", "clone3", "fork", "vfork",
+        "wait4", "waitid",
+        "exit", "exit_group",
+        "kill", "tgkill", "tkill",
+        "set_tid_address", "set_robust_list", "get_robust_list",
+        "futex", "futex_waitv",
+        "prctl", "arch_prctl",
+        "setpgid", "getpgid", "getpgrp", "setsid", "getsid"
+      ],
+      "action": "SCMP_ACT_ALLOW"
+    },
+    {
+      "comment": "Networking (SSH, git clone, package managers)",
+      "names": [
+        "socket", "connect", "accept", "accept4",
+        "sendto", "recvfrom", "sendmsg", "recvmsg",
+        "bind", "listen", "getsockname", "getpeername",
+        "socketpair", "setsockopt", "getsockopt",
+        "shutdown", "epoll_create", "epoll_create1",
+        "epoll_ctl", "epoll_wait", "epoll_pwait", "epoll_pwait2",
+        "eventfd", "eventfd2", "signalfd", "signalfd4",
+        "timerfd_create", "timerfd_settime", "timerfd_gettime"
+      ],
+      "action": "SCMP_ACT_ALLOW"
+    },
+    {
+      "comment": "Memory and threading",
+      "names": [
+        "mlock", "munlock", "mlockall", "munlockall",
+        "membarrier", "rseq",
+        "getrandom", "sched_getaffinity", "sched_setaffinity",
+        "sched_getscheduler", "sched_setscheduler",
+        "sched_getparam", "sched_setparam"
+      ],
+      "action": "SCMP_ACT_ALLOW"
+    },
+    {
+      "comment": "Privilege changes require CAP_SETUID, CAP_SETGID, and CAP_SETPCAP inside the container. The generated entrypoint starts as root and uses su to switch to the unprivileged sandbox user; sshd privilege separation also changes users. Without these calls, su reports 'su: can't set groups: Operation not permitted' and the container exits before the agent starts. The eBPF sidecar cannot inspect a container after it exits.",
+      "names": [
+        "setuid", "setgid", "setgroups",
+        "setresuid", "setresgid",
+        "setreuid", "setregid",
+        "setfsuid", "setfsgid",
+        "capset"
+      ],
+      "action": "SCMP_ACT_ALLOW"
+    },
+    {
+      "comment": "Agent installation requires umask and capget. update_on_launch installs the agent CLI with npm, and node-tar calls umask() to preserve archive entry modes. If seccomp returns EPERM, tar creates a non-writable executable stub and postinstall scripts that replace it, such as claude-code copying its native binary over bin/claude.exe, fail with EACCES. The CLI is then unavailable on PATH and the agent exits. Node uses capget() to inspect process capabilities. Docker's runtime default profile allows both calls.",
+      "names": [
+        "umask",
+        "capget"
+      ],
+      "action": "SCMP_ACT_ALLOW"
+    },
+    {
+      "comment": "Additional calls used by agent runtimes. inotify_* supports filesystem watchers in fs.watch, TypeScript tools, development servers, test runners, and language servers. Returning EPERM disables those watchers. sendmmsg and recvmmsg support glibc's parallel A and AAAA DNS resolver on Wolfi; returning EPERM causes getaddrinfo to fail instead of falling back, which breaks name resolution for Git, package managers, and installers. restart_syscall resumes calls interrupted by signals, while rt_sigtimedwait and related calls support synchronous signal handling. Modern runtimes, GPG, and posix_spawn use memfd_create and close_range. Docker's runtime default profile allows all of these calls.",
+      "names": [
+        "inotify_init", "inotify_init1", "inotify_add_watch", "inotify_rm_watch",
+        "sendmmsg", "recvmmsg",
+        "restart_syscall",
+        "rt_sigtimedwait", "rt_sigsuspend", "rt_sigpending",
+        "rt_sigqueueinfo", "rt_tgsigqueueinfo",
+        "memfd_create", "close_range"
+      ],
+      "action": "SCMP_ACT_ALLOW"
+    },
+    {
+      "comment": "Return ENOSYS for newer optional syscalls so libc and language-runtime feature detection can use supported alternatives: pidfd process managers use kill(2), io_uring users switch to epoll, and Landlock is skipped. This matches the Moby default profile. Unlisted syscalls continue to use the EPERM value in defaultErrnoRet.",
+      "names": [
+        "pidfd_open", "pidfd_send_signal", "pidfd_getfd",
+        "io_uring_setup", "io_uring_enter", "io_uring_register",
+        "landlock_create_ruleset", "landlock_add_rule", "landlock_restrict_self"
+      ],
+      "action": "SCMP_ACT_ERRNO",
+      "errnoRet": 38
+    }
+  ]
+}

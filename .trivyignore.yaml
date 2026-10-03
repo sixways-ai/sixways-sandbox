@@ -1,0 +1,17 @@
+misconfigurations:
+  - id: AVD-DS-0002
+    paths:
+      - base/Dockerfile
+      - devcontainer/Dockerfile
+      - go/Dockerfile
+      - microvm/base/Dockerfile
+      - microvm/node/Dockerfile
+      - microvm/python/Dockerfile
+      - node/Dockerfile
+      - python/Dockerfile
+      - rust/Dockerfile
+    expired_at: 2027-08-23
+    statement: >-
+      Container images retain root as Config.User only for the endpoint-owned
+      mount/bootstrap path, which drops to uid 1000 before agent execution.
+      microVM images instead require a privileged PID 1 to configure the guest.

@@ -1,0 +1,8 @@
+# Provenance of the baked sixways-mcp-proxy binaries (see scripts/build-mcp-proxy.sh).
+# Edit source_commit (and rustc), run scripts/build-mcp-proxy.sh --update, commit PROVENANCE + SHA256SUMS.
+source_repo=SixWays/sixways-endpoint-dev (public mirror: github.com/sixways-ai/sixways)
+source_commit=50645df6147dac7b959915baa8f67aa55186bef9
+rustc=1.96.0
+package=sixways-mcp-proxy
+build=cargo build --release --locked --target <arch>-unknown-linux-musl -p sixways-mcp-proxy --no-default-features
+linker=rust-lld (static musl, no C toolchain)
