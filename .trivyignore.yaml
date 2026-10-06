@@ -1,0 +1,29 @@
+vulnerabilities:
+  - id: CVE-2026-93748
+    paths:
+      - usr/lib/node_modules/npm/node_modules/http-cache-semantics/package.json
+    expired_at: 2026-11-02
+    statement: >-
+      http-cache-semantics 4.2.0 is bundled inside npm (nodejs-22 apk) and is
+      npm's own single-user HTTP client cache, not a shared cache, so the
+      cross-user max-stale leak does not apply. No fixed release exists in the
+      npm registry (4.2.0 is latest; npm 12.2.0 and make-fetch-happen 16.0.1
+      still depend on it). Expires so the gate fails again if upstream is
+      still unfixed. Decision: Shaun, 2026-10-03.
+misconfigurations:
+  - id: AVD-DS-0002
+    paths:
+      - base/Dockerfile
+      - devcontainer/Dockerfile
+      - go/Dockerfile
+      - microvm/base/Dockerfile
+      - microvm/node/Dockerfile
+      - microvm/python/Dockerfile
+      - node/Dockerfile
+      - python/Dockerfile
+      - rust/Dockerfile
+    expired_at: 2027-08-23
+    statement: >-
+      Container images retain root as Config.User only for the endpoint-owned
+      mount/bootstrap path, which drops to uid 1000 before agent execution.
+      microVM images instead require a privileged PID 1 to configure the guest.

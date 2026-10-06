@@ -1,0 +1,8 @@
+# Provenance of the baked sixways-probe binaries (see scripts/build-probe.sh).
+# Edit source_commit (and rustc), run scripts/build-probe.sh --update, commit PROVENANCE + SHA256SUMS.
+source_repo=SixWays/sixways-endpoint-dev (public mirror: github.com/sixways-ai/sixways)
+source_commit=98d9d947c681a3286411bfb8e58af5803d9d0a43
+rustc=1.96.0
+package=sixways-probe
+build=cargo build --release --locked --target <arch>-unknown-linux-musl -p sixways-probe
+linker=rust-lld (static musl, no C toolchain)

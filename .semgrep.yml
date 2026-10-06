@@ -1,0 +1,30 @@
+rules:
+  - id: sixways.sandbox.download-piped-to-shell
+    languages: [generic]
+    severity: ERROR
+    message: Do not execute an unverified network response as shell code.
+    paths:
+      include:
+        - "*.sh"
+        - "Dockerfile*"
+        - "/.forgejo/workflows/*.yaml"
+    pattern-regex: '(?i)\b(curl|wget)\b[^\n|]*\|\s*(ba|z|k)?sh\b'
+
+  - id: sixways.sandbox.network-process-substitution
+    languages: [generic]
+    severity: ERROR
+    message: Do not source an unverified network response.
+    paths:
+      include:
+        - "*.sh"
+        - "/.forgejo/workflows/*.yaml"
+    pattern-regex: '(?i)\b(source|\.)\s+<\(\s*(curl|wget)\b'
+
+  - id: sixways.sandbox.dynamic-shell-eval
+    languages: [bash]
+    severity: ERROR
+    message: Avoid dynamic eval in sandbox build and runtime scripts.
+    paths:
+      include:
+        - "*.sh"
+    pattern: eval $COMMAND
