@@ -2,7 +2,7 @@
 # freshness job resolves and updates this pin. The published image has a
 # separate digest that is signed with cosign and recorded in the Ed25519
 # manifest.
-FROM cgr.dev/chainguard/wolfi-base@sha256:65e1acb87a2bf356b92c5f70f3980f03b4bb51dfd483c834e01557525f15c1d9
+FROM cgr.dev/chainguard/wolfi-base@sha256:833c48f1faf32c90e6f9501a2410a9aa28ceb2c594102edd4470053c30efa089
 
 # Node major and Python minor are pinned here, in the one place every variant
 # inherits from. The regression suite asserts these majors so an unnoticed
